@@ -17,8 +17,12 @@
  */
 
 #include <stdint.h>
+#include <stdio.h>
+#include <stdbool.h>
+//#include <unistd.h>   //includes the _write fucntion
 #include "stm32l073xx.h"
 #include "main.h"
+
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -32,18 +36,35 @@ int main(void)
 	GPIO_clock_INIT();
 	UART2_INIT();
 
-	// DEFINE THE PIN MODE
+
+
+	/**************TEST UART2**********/
+
+	printf("Hello, USART2!\r\n");
+
+
+	/**************TEST GPIO************/
+
+
+		// DEFINE THE PIN MODE
 
 	GPIOA->MODER &= ~(3U << (2 * 5));  // Clear the mode bits for PA5   //10TH AND 11TH BITS ARE SET TO 0
 	GPIOA->MODER |= (1U << (2 * 5));   // Set the mode bits to 01 (Output)// 10TH BIT IS SET TO 1
 
 
+
+	/**************MCO1 CONFIGURATION*******/
+
+	 MCO1_CONFIG();
+
+
+
 while(1){
 
-for(uint32_t i = 0 ; i<10000 ; i++ );
-	GPIOA->ODR ^= GPIO_ODR_OD5;
-}
+	for(uint32_t i = 0 ; i<100000 ; i++ );
 
+		GPIOA->ODR ^= GPIO_ODR_OD5;
+}
 
 }
 
@@ -60,15 +81,21 @@ void GPIO_clock_INIT(void ){
 	//ENABLE GPIO E CLOCK
 	RCC->IOPENR |= RCC_IOPENR_GPIOEEN;
 }
+
+
 void UART2_INIT(void){
+
+
       //ENABLE THE UART2 CLOCK
 	 RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
+
 	 // CONFIGURE THE UART2
-	 USART2->BRR = 16000000 / 9600;   // Baudrate = 9600 (16 MHz clock)
+	 USART2->BRR = 2101000 / 9600;   // Baudrate = 9600 (2.101 MHz clock)
 
 	 USART2->CR1 = USART_CR1_TE |     // Enable transmitter
 	               USART_CR1_RE |     // Enable receiver
 	               USART_CR1_UE;      // Enable USART2
+
 	 //configure the PINS PA2 AND PA3 AS ALTERNATE FUNCTION
 	 GPIOA->MODER &= ~((3U << (2 * 2)) | (3U << (2 * 3)));// Clear bits
 	 GPIOA->MODER |= (2U << (2 * 2)) | (2U << (2 * 3));    // Set alternate function mode
@@ -77,3 +104,52 @@ void UART2_INIT(void){
 	 GPIOA->AFR[0] &= ~((0xF << (4 * 2)) | (0xF << (4 * 3))); // Clear AF bits
 	 GPIOA->AFR[0] |= (4U << (4 * 2)) | (4U << (4 * 3));      // Set AF4 for USART2
 }
+
+
+
+
+void USART2_SendChar(char c) {
+
+
+    while (!(USART2->ISR & USART_ISR_TXE)) {   // USART_ISR_TXE CHECK IF THE TRANSMISSION BUFFER IS READY (EMPTY)
+        // Attente : buffer de transmission vide
+    }
+    USART2->TDR = c; // Envoyer le caractère
+}
+
+char USART2_ReceiveChar(void) {
+
+    while (!(USART2->ISR & USART_ISR_RXNE)) {  //USART_ISR_RXNE  Read Data Register Not Empty
+        // Attente : caractère reçu
+    }
+    return USART2->RDR; // Lire le registre des données reçues   RECEIVE DATA REGISTER
+}
+
+
+
+
+ void MCO1_CONFIG(void){
+
+
+	 // Set PA8 to Alternate Function mode
+	 GPIOA->MODER &= ~(GPIO_MODER_MODE8); // Clear MODER bits for PA8
+	 GPIOA->MODER |= GPIO_MODER_MODE8_1; // Set PA8 to AF mode
+
+	 // Set PA8 to the correct Alternate Function (AF0 for MCO1)
+	 GPIOA->AFR[1] &= ~(0xF << (8 - 8) * 4); // Clear AFR bits for PA8
+	 GPIOA->AFR[1] |= (0x0 << (8 - 8) * 4);  // AF0 for MCO1
+
+	 // Set MCO1 source to SYSCLK and no prescaler
+	 RCC->CFGR &= ~(RCC_CFGR_MCOSEL | RCC_CFGR_MCOPRE); // Clear existing settings  mco selector and the prescaler
+	 RCC->CFGR |= (RCC_CFGR_MCOSEL_SYSCLK | RCC_CFGR_MCOPRE_DIV1); // SYSCLK and DIV1    DEFINE THE MCO SOURCE AS THE SYSTEM CLOCK AND SET THE PRESCALER TO 1
+
+ }
+ int _write(int file, char *data, int len) {
+
+     for (int i = 0; i < len; i++) {
+         USART2_SendChar(data[i]);
+     }
+     return len; // Return the number of characters written
+ }
+
+
