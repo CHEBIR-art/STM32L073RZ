@@ -19,10 +19,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-//#include <unistd.h>   //includes the _write fucntion
+#include <unistd.h>
 #include "stm32l073xx.h"
 #include "main.h"
-
+#include "timer.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -35,18 +35,35 @@ int main(void)
 
 	GPIO_clock_INIT();
 	UART2_INIT();
+	Timer2_Init();
 
 
+	/**************UART2 TEST **********/
 
-	/**************TEST UART2**********/
+				//TRANSMISSION
 
 	printf("Hello, USART2!\r\n");
+
+
+				//RECEPTION
+
+	char received_char;
+	printf("\r\nEnter a key : ");
+	received_char = __io_getchar(); // Wait for character input
+
+	        // Display the received character
+	        printf("\r\nYou pressed: %c\r\n", received_char);
+
+	/*received_char = __io_getchar(); // Wait for character input
+	if (received_char != '\r' && received_char != '\n' && received_char != ' ' ) {
+	    printf("You pressed: %c\r\n", received_char); // Echo back
+	}*/
 
 
 	/**************TEST GPIO************/
 
 
-		// DEFINE THE PIN MODE
+		// DEFINE THE PIN5 MODE AS OUTPUT LED
 
 	GPIOA->MODER &= ~(3U << (2 * 5));  // Clear the mode bits for PA5   //10TH AND 11TH BITS ARE SET TO 0
 	GPIOA->MODER |= (1U << (2 * 5));   // Set the mode bits to 01 (Output)// 10TH BIT IS SET TO 1
@@ -60,10 +77,17 @@ int main(void)
 
 
 while(1){
+	/**********TIMER TEST********
+		Timer2_Delay_ms(1000); // 1-second delay              //************SUCCESS
+	    printf("Timer delay complete\r\n");*/
+
+
+	/******TIMER APPLICATION***********/
 
 	for(uint32_t i = 0 ; i<100000 ; i++ );
 
-		GPIOA->ODR ^= GPIO_ODR_OD5;
+		GPIOA->ODR ^= GPIO_ODR_OD5;   // LED TOGGLE
+		  Timer2_Delay_ms(500);       // DELAY OF 500 ms
 }
 
 }
@@ -106,9 +130,9 @@ void UART2_INIT(void){
 }
 
 
+// FUNCTION TO SEND DATA
 
-
-void USART2_SendChar(char c) {
+void __io_putchar(char c) {
 
 
     while (!(USART2->ISR & USART_ISR_TXE)) {   // USART_ISR_TXE CHECK IF THE TRANSMISSION BUFFER IS READY (EMPTY)
@@ -117,7 +141,9 @@ void USART2_SendChar(char c) {
     USART2->TDR = c; // Envoyer le caractère
 }
 
-char USART2_ReceiveChar(void) {
+
+		//FUNCTION TO WRITE DATA
+int  __io_getchar(void) {
 
     while (!(USART2->ISR & USART_ISR_RXNE)) {  //USART_ISR_RXNE  Read Data Register Not Empty
         // Attente : caractère reçu
@@ -144,12 +170,26 @@ char USART2_ReceiveChar(void) {
 	 RCC->CFGR |= (RCC_CFGR_MCOSEL_SYSCLK | RCC_CFGR_MCOPRE_DIV1); // SYSCLK and DIV1    DEFINE THE MCO SOURCE AS THE SYSTEM CLOCK AND SET THE PRESCALER TO 1
 
  }
- int _write(int file, char *data, int len) {
+
+/* // Overriding _write to use USART2_SendChar
+
+int _write(int file, char *data, int len) {
 
      for (int i = 0; i < len; i++) {
-         USART2_SendChar(data[i]);
+         __io_putchar(data[i]);
      }
      return len; // Return the number of characters written
- }
+ }*/
 
+
+ // Overriding _read to use USART2_ReceiveChar
+
+
+ int _read(int file, char *ptr, int len) {
+     (void)file; // Suppress unused parameter warning
+     for (int i = 0; i < len; i++) {
+         ptr[i] =  __io_getchar();
+     }
+     return len;
+ }
 
