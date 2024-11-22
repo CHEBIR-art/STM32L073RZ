@@ -23,6 +23,8 @@
 #include "stm32l073xx.h"
 #include "main.h"
 #include "timer.h"
+#include "clock_config.h"
+#include "user_clock_config.h"
 
 #if !defined(__SOFT_FP__) && defined(__ARM_FP)
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
@@ -30,12 +32,12 @@
 
 int main(void)
 {
-
+	 SystemClock_Config();
 	// Initialization of peripherals
 
 	GPIO_clock_INIT();
-	UART2_INIT();
-	Timer2_Init();
+	//UART2_INIT();
+	//Timer2_Init();
 
 
 	/**************UART2 TEST **********/
@@ -47,7 +49,7 @@ int main(void)
 
 				//RECEPTION
 
-	char received_char;
+	/*char received_char;
 	printf("\r\nEnter a key : ");
 	received_char = __io_getchar(); // Wait for character input
 
@@ -78,19 +80,18 @@ int main(void)
 
 while(1){
 	/**********TIMER TEST********
-		Timer2_Delay_ms(1000); // 1-second delay              //************SUCCESS
+		Timer2_Delay_ms(10000); // 1-second delay              //************SUCCESS
 	    printf("Timer delay complete\r\n");*/
 
 
 	/******TIMER APPLICATION***********/
 
-	for(uint32_t i = 0 ; i<100000 ; i++ );
-
 		GPIOA->ODR ^= GPIO_ODR_OD5;   // LED TOGGLE
-		  Timer2_Delay_ms(500);       // DELAY OF 500 ms
+		  Timer2_Delay_ms(1000000);       // DELAY OF 500 ms*/
+		  printf("Timer delay complete\r\n"); // TO TEST
+}
 }
 
-}
 
 void GPIO_clock_INIT(void ){
 
