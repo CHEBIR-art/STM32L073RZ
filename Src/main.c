@@ -8,7 +8,7 @@
 #include "system_stm32l0xx.h"
 #include "system_clock_config.h"
 #include "main.h"
-#include <app_ledblink.h>
+#include "app_ledblink.h"
 #include "timer.h"
 #include "gpio.h"
 #include "systick.h"
@@ -35,9 +35,12 @@ int main(void)
 	SPI_Init();
 	SX1261_Init();
 	SPI_Test( 0x01);
-
-
-
+	// Initialiser le RTC
+    RTC_Init();
+	// Configurer l'heure : 12:34:56
+	RTC_SetTime(12, 34, 56);
+	// Boucle principale
+	uint8_t hours, minutes, seconds;
 
 while(1){
 	/****TIMER TEST MS ***/
@@ -45,13 +48,17 @@ while(1){
 
 	/**SYSTIC TIMER  APPLICATION**/
 	//LED_BLINK();
+	 // Lire l'heure actuelle
+	 RTC_GetTime(&hours, &minutes, &seconds);
+	 // Insérez ici votre code UART pour afficher les heures, minutes et secondes
+	   printf("Time: %02d:%02d:%02d\r\n", hours, minutes, seconds);
+
+	  // Petite temporisation pour éviter les rafraîchissements trop rapides
+	 for (volatile int i = 0; i < 1000000; i++);
 
 
 }
-
-
 }
-
 
 
 
