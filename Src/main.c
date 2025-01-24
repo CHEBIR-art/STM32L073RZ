@@ -17,6 +17,7 @@
 #include "mco.h"
 #include "uart2.h"
 #include "utilities.h"
+#include "rtc.h"
 
 
 
@@ -31,15 +32,23 @@ int main(void)
 	Timer2_Init();
 	SYSTICK_Init();
 	MCO1_CONFIG();
-	// TEST SPI
+	//SPI TEST
 	SPI_Init();
-	SX1261_Init();
-	SPI_Test( 0x01);
-	// Initialiser le RTC
+	//SX1261_Init();
+	//SPI_Test( 0x52);
+
+/*TEST OF WATCHDOG
+
+	//IWDG_Init();
+	//Check_Reset_Cause();
+
+	*/
     RTC_Init();
-	// Configurer l'heure : 12:34:56
-	RTC_SetTime(12, 34, 56);
-	// Boucle principale
+	RTC_SetTime(12, 34, 56);// Configurer l'heure : 12:34:56
+
+
+
+
 	uint8_t hours, minutes, seconds;
 
 while(1){
@@ -48,14 +57,23 @@ while(1){
 
 	/**SYSTIC TIMER  APPLICATION**/
 	//LED_BLINK();
+
+	//SPI_LoopbackTest(0x52);
+	//SYSTICK_Delay(500);
+	/******RTC TEST ****/
+
+
 	 // Lire l'heure actuelle
 	 RTC_GetTime(&hours, &minutes, &seconds);
-	 // Insérez ici votre code UART pour afficher les heures, minutes et secondes
-	   printf("Time: %02d:%02d:%02d\r\n", hours, minutes, seconds);
+	 // Code UART pour afficher les heures, minutes et secondes
+	  printf("Time: %02d:%02d:%02d\r\n", hours, minutes, seconds);
+
+
 
 	  // Petite temporisation pour éviter les rafraîchissements trop rapides
-	 for (volatile int i = 0; i < 1000000; i++);
 
+	 for (volatile int i = 0; i < 1000000; i++);
+	//Feed_IWDG();// Realimenter le watchdog
 
 }
 }

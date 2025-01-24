@@ -7,6 +7,7 @@
 
 
 #include "stm32l073xx.h"
+#include <stdio.h>
 #include "spi.h"
 
 #define NSS_LOW()  (GPIOA->ODR &= ~GPIO_ODR_OD4) // NSS = PA4 SLAVE SELECT IS CHOSEN
@@ -24,14 +25,20 @@ void SPI_Init(void) {
 	    GPIOA->AFR[0] &= ~((0xF << (4 * 5)) | (0xF << (4 * 6)) | (0xF << (4 * 7))); // Clear AF
 	    GPIOA->AFR[0] |= ((0U << (4 * 5)) | (0U << (4 * 6)) | (0U << (4 * 7)));    // Assign AF0 for SPI1
 
-
+	   // NSS_HIGH();
 	  /// Configure SPI: Master mode, baud rate, CPOL, CPHA, and software NSS management
 	    SPI1->CR1 = SPI_CR1_MSTR | SPI_CR1_SSM | SPI_CR1_SSI;  // Master mode, software NSS management
-	    SPI1->CR1 &= ~SPI_CR1_BR;  //  No prescaler, SPI clock = Fpclk (16 MHz)
+
+      //Le SX1261 spécifie une fréquence SPI maximale de 10 MHz
+	  //SPI1->CR1 &= ~SPI_CR1_BR;  //  No prescaler, SPI clock = Fpclk (16 MHz)  TROP RAPIDE
+
+	    SPI1->CR1 |= SPI_CR1_BR_1 | SPI_CR1_BR_0;  // Configure prescaler à FPCLK/16 (1 MHz)   011: fPCLK/16
+
+
 	    SPI1->CR1 &= ~(SPI_CR1_CPOL | SPI_CR1_CPHA);  // CPOL=0, CPHA=0 (Mode 0)
 
 	    // Configure data size to 8 bits (clear DFF bit for 8-bit frame format)
-	    SPI1->CR1 &= ~SPI_CR1_DFF;  // DFF = 0 -> 8-bit data frame format
+	   // SPI1->CR1 |= SPI_CR1_DFF;  // DFF = 1 -> 8-bit data frame format
 
 	    // Set RX FIFO threshold to 8 bits (default behavior for 8-bit data frames)
 	    // No additional configuration is needed as the hardware manages this automatically.
@@ -45,30 +52,51 @@ void SPI_Init(void) {
 
 
 
-uint8_t SPI1_TransmitReceive(uint8_t data2SEND) {
+uint16_t SPI1_TransmitReceive(uint16_t data2SEND) {
+    // Nettoyer le registre RX si nécessaire
+    while (SPI1->SR & SPI_SR_RXNE);
+     //data sending
     SPI1->DR = data2SEND;
-    while (!(SPI1->SR & SPI_SR_TXE)) {}
-    while (!(SPI1->SR & SPI_SR_RXNE)) {}
+    // wait for the end of the transmission
+
+    while (!(SPI1->SR & SPI_SR_TXE));
+    while (SPI1->SR & SPI_SR_BSY);  // Attendre que le SPI soit inactif
+
     return SPI1->DR;
 }
 
-/*void SPI_Test(void) {
-	//uint8_t  regAddr ;
-	    uint8_t sentByte = 0xA5;  // Exemple de byte à envoyer
-	    uint8_t receivedByte = SPI1_TransmitReceive(sentByte);  // Transmettre et recevoir
-	    printf("Received Byte: 0x%02X\n", receivedByte);// Afficher le byte reçu
-	    printf("Reading Register: 0x%02X\n", regAddr);  // Affiche l'adresse du registre
-
-	}*/
 
 void SPI_Test(uint8_t regAddr) {
-    uint8_t sentByte = regAddr & 0x7F;  // S'assurer que le bit MSB est à 0 pour une lecture
-    uint8_t receivedByte = SPI1_TransmitReceive(sentByte);  // Envoyer l'adresse et lire la réponse
+    // Préparer l'octet à envoyer (lecture : bit MSB à 0)
+    uint8_t sentByte = regAddr & 0x7F;  // MSB doit être 0
+    uint8_t receivedByte;
 
-    // Afficher les résultats sur le terminal
-    printf("Sent Byte (Register Address): 0x%02X\n", sentByte);
-    printf("Received Byte: 0x%02X\n", receivedByte);
+    // Transmettre l'octet et recevoir la réponse
+    receivedByte = SPI1_TransmitReceive(sentByte);
+
+    // Afficher le byte envoyé et reçu
+    printf("SPI Test:\r\n");
+    printf("  - Byte envoyé : 0x%02X\r\n", sentByte);
+    printf("  - Byte reçu   : 0x%02X\r\n", receivedByte);
+
+    // Vérifier si les deux bytes correspondent
+    if (sentByte != receivedByte) {
+        printf("  -> ERREUR : Le byte envoyé et le byte reçu ne correspondent pas !\r\n");
+    } else {
+        printf("  -> SUCCÈS : Le byte envoyé correspond au byte reçu.\r\n");
+    }
 }
+void SPI_LoopbackTest(uint8_t testByte) {
+    uint8_t receivedByte = SPI1_TransmitReceive(testByte);
 
+    printf("SPI Loopback Test:\r\n");
+    printf("  - Byte envoyé : 0x%02X\r\n", testByte);
+    printf("  - Byte reçu   : 0x%02X\r\n", receivedByte);
 
+    if (testByte == receivedByte) {
+        printf("  -> SUCCÈS : Communication SPI fonctionnelle en boucle locale.\r\n");
+    } else {
+        printf("  -> ERREUR : Problème de communication SPI.\r\n");
+    }
+}
 
