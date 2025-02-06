@@ -17,8 +17,6 @@
 #include "mco.h"
 #include "uart2.h"
 #include "utilities.h"
-
-
 #include "rtc.h"
 
 
@@ -35,8 +33,24 @@ int main(void)
 	SYSTICK_Init();
 	MCO1_CONFIG();
 	//SPI TEST
-	SPI_Init();
+	/* initialisation */
+	//SPI_Init();
 	//SX1261_Init();
+
+	/* communication test */
+	// SX1261_Test();
+
+//	SX1261_SimpleTest();
+	//SX1261_TestWriteRead();// read and write test between the master and the slave
+	//SX1261_WriteRegister(0x06C0, 0xBB);
+
+	//uint8_t val = SX1261_ReadRegister(0x06C0);
+	//printf("Valeur lue : 0x%02X\r\n", val);
+
+
+	  // Tester la communication LoRa une seule fois
+	   // SX1261_LORA_test();
+
 	//SPI_Test( 0x52);
 
 /*TEST OF WATCHDOG
@@ -45,6 +59,7 @@ int main(void)
 	//Check_Reset_Cause();
 
 	*/
+	    /* test de rtc */
     RTC_Init();
 	RTC_SetTime(12, 34, 56);// Configurer l'heure : 12:34:56
 
@@ -59,11 +74,13 @@ while(1){
 
 	/**SYSTIC TIMER  APPLICATION**/
 	//LED_BLINK();
+	 //SX1261_Test();
 
 	//SPI_LoopbackTest(0x52);
 	//SYSTICK_Delay(500);
-	/******RTC TEST ****/
 
+
+	/******RTC TEST ****/
 
 	 // Lire l'heure actuelle
 	 RTC_GetTime(&hours, &minutes, &seconds);
