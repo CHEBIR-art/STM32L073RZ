@@ -12,17 +12,29 @@
 #include "watchdog.h"
 
 void IWDG_Init(void) {
-    // Activer l'accès à l'IWDG
-    IWDG->KR = 0xCCCC; // Activer l'IWDG
+    // Activer l'IWDG (démarrage du watchdog)
+    IWDG->KR = 0xCCCC;
 
-    // Configurer la période de timeout
-    IWDG->KR = 0x5555; // Activer l'accès aux registres de configuration
-    IWDG->PR = 0x6;    // Diviseur de précharge : divise par 256
-    IWDG->RLR = 0xFFF; // Reload register (timeout max : environ 32 s)
+    // Déverrouiller l'accès aux registres PR et RLR
+    IWDG->KR = 0x5555;
 
-    // Redémarrer le compteur
-    IWDG->KR = 0xAAAA; // Alimenter le Watchdog
+    // Attendre que le bit PVU soit remis à 0 avant de modifier le prescaler
+    while (IWDG->SR & (1 << 0)) {}
+
+    // Configurer le prescaler : division par 256
+    IWDG->PR = 0x6;
+
+    // Attendre que l'opération soit terminée
+    while (IWDG->SR & (1 << 0)) {}
+
+    // Configurer la valeur de rechargement
+    IWDG->RLR =0x0484; // timeout of 8s   en decimal = 1156 F-IWDG = LSI + 37kHz
+
+    // Assurer la prise en compte de la nouvelle configuration
+
+    IWDG->KR = 0xAAAA; // Rafraîchit le compteur (évite un reset immédiat)
 }
+
 
 
 void Feed_IWDG(void) {

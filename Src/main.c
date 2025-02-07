@@ -34,14 +34,14 @@ int main(void)
 	MCO1_CONFIG();
 	//SPI TEST
 	/* initialisation */
-	//SPI_Init();
-	//SX1261_Init();
+	SPI_Init();
+	SX1261_Init();
 
 	/* communication test */
-	// SX1261_Test();
+	 //SX1261_Test();
 
-//	SX1261_SimpleTest();
-	//SX1261_TestWriteRead();// read and write test between the master and the slave
+   //SX1261_SimpleTest();
+	SX1261_TestWriteRead();// read and write test between the master and the slave
 	//SX1261_WriteRegister(0x06C0, 0xBB);
 
 	//uint8_t val = SX1261_ReadRegister(0x06C0);
@@ -55,18 +55,18 @@ int main(void)
 
 /*TEST OF WATCHDOG
 
-	//IWDG_Init();
-	//Check_Reset_Cause();
+	IWDG_Init();
+	Check_Reset_Cause();
 
-	*/
-	    /* test de rtc */
+	
+	    // test de rtc 
     RTC_Init();
 	RTC_SetTime(12, 34, 56);// Configurer l'heure : 12:34:56
 
 
 
 
-	uint8_t hours, minutes, seconds;
+	//uint8_t hours, minutes, seconds;
 
 while(1){
 	/****TIMER TEST MS ***/
@@ -83,16 +83,16 @@ while(1){
 	/******RTC TEST ****/
 
 	 // Lire l'heure actuelle
-	 RTC_GetTime(&hours, &minutes, &seconds);
+	// RTC_GetTime(&hours, &minutes, &seconds);
 	 // Code UART pour afficher les heures, minutes et secondes
-	  printf("Time: %02d:%02d:%02d\r\n", hours, minutes, seconds);
+	 // printf("Time: %02d:%02d:%02d\r\n", hours, minutes, seconds);
 
 
 
 	  // Petite temporisation pour éviter les rafraîchissements trop rapides
 
-	 for (volatile int i = 0; i < 1000000; i++);
-	//Feed_IWDG();// Realimenter le watchdog
+	// for (volatile int i = 0; i < 1000000; i++);
+	Feed_IWDG();// Realimenter le watchdog
 
 }
 }
