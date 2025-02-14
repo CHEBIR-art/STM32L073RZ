@@ -25,6 +25,11 @@ void SPI_Init(void) {
 	    GPIOA->AFR[0] &= ~((0xF << (4 * 5)) | (0xF << (4 * 6)) | (0xF << (4 * 7))); // Clear AF
 	    GPIOA->AFR[0] |= ((0U << (4 * 5)) | (0U << (4 * 6)) | (0U << (4 * 7)));    // Assign AF0 for SPI1
 
+	    //  Configurer PB3 en entrée (BUSY signal)
+	        GPIOB->MODER &= ~(3U << (2 * 3));  // Mettre PB3 en mode entrée
+	        GPIOB->PUPDR &= ~(3U << (2 * 3));  // Pas de pull-up / pull-down
+
+
 	   // NSS_HIGH();
 	  /// Configure SPI: Master mode, baud rate, CPOL, CPHA, and software NSS management
 	    SPI1->CR1 = SPI_CR1_MSTR | SPI_CR1_SSM | SPI_CR1_SSI;  // Master mode, software NSS management
@@ -33,6 +38,7 @@ void SPI_Init(void) {
 	  //SPI1->CR1 &= ~SPI_CR1_BR;  //  No prescaler, SPI clock = Fpclk (16 MHz)  TROP RAPIDE
 
 	    SPI1->CR1 |= SPI_CR1_BR_1 | SPI_CR1_BR_0;  // Configure prescaler à FPCLK/16 (1 MHz)   011: fPCLK/16
+	   // SPI1->CR1 |= SPI_CR1_BR_2;  // fPCLK/32 (500 kHz) //JUST TO TRY !!!!!!
 
 
 	    SPI1->CR1 &= ~(SPI_CR1_CPOL | SPI_CR1_CPHA);  // CPOL=0, CPHA=0 (Mode 0)
@@ -53,16 +59,23 @@ void SPI_Init(void) {
 
 
 uint16_t SPI1_TransmitReceive(uint16_t data2SEND) {
-    // Nettoyer le registre RX si nécessaire
-    while (SPI1->SR & SPI_SR_RXNE);
-     //data sending
-    SPI1->DR = data2SEND;
-    // wait for the end of the transmission
+	NSS_LOW();  // Activer le slave
 
-    while (!(SPI1->SR & SPI_SR_TXE));
-    while (SPI1->SR & SPI_SR_BSY);  // Attendre que le SPI soit inactif
+	    // Envoyer la donnée
+	    SPI1->DR = (uint8_t)(data2SEND & 0xFF);
 
-    return SPI1->DR;
+	    // Attendre que la transmission soit terminée
+	    while (!(SPI1->SR & SPI_SR_TXE));  // Attendre que le buffer TX soit vide
+	    while (!(SPI1->SR & SPI_SR_RXNE)); // Attendre la réception d'une donnée
+
+	    // Lire et retourner la donnée reçue
+	    uint16_t received_data = SPI1->DR;
+
+	    while (SPI1->SR & SPI_SR_BSY); // Vérifier que SPI est inactif
+
+	    NSS_HIGH();  // Désactiver le slave
+	    return received_data;
+
 }
 
 

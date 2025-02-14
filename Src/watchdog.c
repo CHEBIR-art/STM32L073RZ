@@ -28,7 +28,7 @@ void IWDG_Init(void) {
     while (IWDG->SR & (1 << 0)) {}
 
     // Configurer la valeur de rechargement
-    IWDG->RLR =0x0484; // timeout of 8s   en decimal = 1156 F-IWDG = LSI + 37kHz
+    IWDG->RLR =0x0484; // timeout of 8s   en decimal = 1156 F-IWDG = LSI = 37kHz
 
     // Assurer la prise en compte de la nouvelle configuration
 
@@ -41,14 +41,16 @@ void Feed_IWDG(void) {
     IWDG->KR = 0xAAAA; // Réalimenter le Watchdog
 }
 void Check_Reset_Cause(void) {
-    if (RCC->CSR & RCC_CSR_IWDGRSTF) { // Vérifie si le reset vient du Watchdog
-        // Effacer le drapeau IWDGRSTF
-        RCC->CSR |= RCC_CSR_RMVF;
+	 printf("Vérification de la cause du reset...\r\n");
 
-        // Vous pouvez indiquer via UART ou LED que le reset vient du Watchdog
-        printf("le reset vient du Watchdog\r\t");
-        // Exemple : allumer une LED pour une indication
-    }
+	    if (RCC->CSR & RCC_CSR_IWDGRSTF) { // Vérifie si le reset vient du Watchdog
+	        printf("?? RESET PROVOQUÉ PAR LE WATCHDOG ! ??\r\n");
+	    } else {
+	        printf("?? Aucun reset Watchdog détecté.\r\n");
+	    }
+
+	    // Effacer les flags de reset
+	    RCC->CSR |= RCC_CSR_RMVF;
 }
 
 
