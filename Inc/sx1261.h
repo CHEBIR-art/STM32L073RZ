@@ -16,6 +16,8 @@
 #define readOP 0x1D
 #define writeBUFFERop  0x0E
 #define readBUFFERop  0x1E
+#define REG_OP_MODE 0x01  // Adresse du registre de mode opérationnel
+#define OP_MODE_STANDBY 0x01  // Valeur pour le mode Standby (mode normal, prêt à recevoir des commandes)
 
 
 // Frequency Configuration
@@ -79,15 +81,14 @@
 
 
 void SX1261_Init(void);
-uint8_t SX1261_ReadRegister(uint16_t regAddr);
-void SX1272_WriteRegister(uint8_t RegAddr, uint8_t data2WRITE);
-void SX1261_ReadBuffer(uint8_t offset, uint8_t *data2READ, uint8_t size);
-void SX1261_WriteBuffer(uint8_t offset, uint8_t *data2WRITE, uint8_t size);
-void SX1261_LORA_Init(void);
-void SX1261_test(void);
+void SX1261_Send(uint8_t *data, uint8_t length);
+void SX1261_Receive(uint8_t *buffer, uint8_t length);
+void SX1261_TestCommunication(void );
+void WaitForBusyLow(void);
+void Check_BUSY_State(void);
+void SX1261_SoftReset(void) ;
 void SX1261_Reset(void);
-void SX1261_SimpleTest(void);
-void SX1261_TestWriteRead(void);
-void SX1261_WaitWhileBusy(void);
-void SX1261_LORA_test (void);
+
+
+
 #endif /* SX1261_H_ */

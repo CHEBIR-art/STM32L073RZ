@@ -14,6 +14,7 @@
 void RTC_Init(void);
 void RTC_SetTime(uint8_t hours, uint8_t minutes, uint8_t seconds);
 void RTC_GetTime(uint8_t *hours, uint8_t *minutes, uint8_t *seconds);
+void RTC_test (void);
 void RTC_SetWakeup(uint32_t seconds);
 void RTC_WKUP_IRQHandler(void) ;
 void EnterStopMode(void);

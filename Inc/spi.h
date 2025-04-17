@@ -11,9 +11,9 @@
 #include "stm32l073xx.h"
 
 void SPI_Init(void);
-uint8_t SPI_TransmitReceive(uint8_t data);
+uint16_t SPI1_TransmitReceive(uint16_t data2SEND);
 void SPI_Test(uint8_t regAddr);
 void SPI_LoopbackTest(uint8_t testByte);
-
+void test_readregister  (void );
 #endif // SPI_H
 

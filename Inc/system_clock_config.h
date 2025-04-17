@@ -10,6 +10,7 @@
 
 
 void SystemClock_Config(void);
-
+void Check_LSI_Status(void);
+void LSI_Enable(void) ;
 
 #endif /* SYSTEM_CLOCK_CONFIG_H_ */

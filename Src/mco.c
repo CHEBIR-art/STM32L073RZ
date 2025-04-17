@@ -22,5 +22,5 @@
 	 // Set MCO1 source to SYSCLK and no prescaler
 	 RCC->CFGR &= ~RCC_CFGR_MCOPRE;          // Clear MCO prescaler
 	 RCC->CFGR |= RCC_CFGR_MCOPRE_DIV1;      // Set MCO prescaler to 1 (no division)
-	 RCC->CFGR |=  RCC_CFGR_MCOSEL_HSI ;    // Set MCO to output the system clock
+	 RCC->CFGR |=  RCC_CFGR_MCOSEL_HSI ;    // Set MCO to output the system clock (à sélectionner par changer RCC_CFGR_MCOSEL_xxxx ) 
  }

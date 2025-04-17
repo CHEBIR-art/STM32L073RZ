@@ -1,246 +1,30 @@
-/*
- * sx1261.c
- *
- *  Created on: Nov 28, 2024
- *      Author: user
- */
+
 
 #include "sx1261.h"
 #include <stdio.h>
 #include "spi.h"
 #include "sx1261.h"
 #include "systick.h"
+#include "utilities.h"
 #define NSS_LOW()  (GPIOA->ODR &= ~GPIO_ODR_OD4) // NSS = PA4
 #define NSS_HIGH() (GPIOA->ODR |= GPIO_ODR_OD4)
+#define NRESET_LOW()   (GPIOA->BSRR = GPIO_BSRR_BR_0)  // Mettre NRESET à LOW  PA0
+#define NRESET_HIGH()  (GPIOA->BSRR = GPIO_BSRR_BS_0)  // Mettre NRESET à HIGH PA0
 
 
-uint8_t SX1261_ReadRegister(uint16_t regAddr) {
-    uint8_t receivedData;
+extern uint8_t receive[2];
 
-    SX1261_WaitWhileBusy();  // Vérifie si le module est occupé
 
-    NSS_LOW();  // Active la communication SPI
 
-    SPI1_TransmitReceive(readOP);  // Commande ReadRegister
-    SPI1_TransmitReceive((regAddr >> 8) & 0xFF);  // MSB adresse
-    SPI1_TransmitReceive(regAddr & 0xFF);  // LSB adresse
-    SPI1_TransmitReceive(0x00);  // NOP (nécessaire pour l'horloge)
+void WaitForBusyLow(void) {
+	uint32_t timeout = 1000000;  // Nombre d'itérations avant d'abandonner
 
-    while (!(SPI1->SR & SPI_SR_RXNE));  // Attendre la réception
-      receivedData = SPI1->DR;  // Lire la donnée reçue
+	    while ((GPIOB->IDR & GPIO_IDR_ID3) && (timeout-- > 0));
 
-
-    receivedData = SPI1_TransmitReceive(0x00);  // Lire la donnée
-
-    NSS_HIGH();  // Désactive le module SPI
-
-    return receivedData;
-}
-
-void SX1261_WriteRegister(uint16_t RegAddr, uint8_t data2WRITE) {
-	 SX1261_WaitWhileBusy();
-	 NSS_LOW();  // Active la communication SPI
-    SPI1_TransmitReceive(writeOP); // Commande WriteRegister
-    SPI1_TransmitReceive((RegAddr >> 8) & 0xFF); // Byte haut de l'adresse
-    SPI1_TransmitReceive(RegAddr & 0xFF); // Byte bas de l'adresse
-    SPI1_TransmitReceive(data2WRITE); // Envoyer la donnée
-    while (!(SPI1->SR & SPI_SR_RXNE));  // Attendre la réception
-     uint8_t  receivedData = SPI1->DR;  // Lire la donnée reçue
-      NSS_HIGH();  // Désactive le module SPI
-}
-
-void SX1261_WriteBuffer(uint8_t offset, uint8_t *data2WRITE, uint8_t size) {
-
-
-	  SX1261_WaitWhileBusy();
-
-	NSS_LOW (); // Activate the SPI slave.
-    SPI1_TransmitReceive(writeBUFFERop); // Send the WriteBuffer command.
-    SPI1_TransmitReceive(offset); // Send the FIFO offset.
-    for (uint8_t i = 0; i < size; i++) {
-        SPI1_TransmitReceive(data2WRITE[i]); // Write data to the FIFO.
-    }
-    while (SPI1->SR & SPI_SR_BSY); // Attendre la fin de l'opération
-    NSS_HIGH(); // Deactivate the SPI slave.
-
-
-}
-
-void SX1261_ReadBuffer(uint8_t offset, uint8_t *data2READ, uint8_t size) {
-	  SX1261_WaitWhileBusy();
-
-	NSS_LOW (); // Activate the SPI slave.
-    SPI1_TransmitReceive(readBUFFERop); // Send the ReadBuffer command.
-    SPI1_TransmitReceive(offset); // Send the FIFO offset.
-    SPI1_TransmitReceive(0x00); // Statut (nécessaire)
-
-    for (uint8_t i = 0; i < size; i++) {
-    	data2READ[i] = SPI1_TransmitReceive(0x00); // Read data from the FIFO.
-    }
-    NSS_HIGH(); // Deactivate the SPI slave.
-
-}
-
-
-/*
-void SX1261_Test(void) {
-    printf("Test de communication avec SX1261...\r\n");
-
-   // SX1261_Reset();
-   // SYSTICK_Delay(20);
-
-
-    uint8_t mode = SX1261_ReadRegister(0x0902); // Lire le mode du SX1261
-    printf("Mode actuel du SX1261 : 0x%02X\r\n", mode);
-
-    if (mode == 0x00) {
-        printf("✅ Le SX1261 est en mode Standby (SPI fonctionne bien).\r\n");
-    } else {
-        printf("⚠️ Problème possible : Mode inattendu (0x%02X) ! Vérifier câblage et SPI.\r\n", mode);
-    }
-    uint8_t testData = SX1261_ReadRegister(0x0889);
-    printf("Valeur lue (0x0889) : 0x%02X\r\n", testData);
-}*/
-
-
-
-/*void SX1261_Init(void) {
-    // Mettre NSS à HIGH au départ
-    NSS_HIGH();
-
-    // Ajouter un délai pour la mise sous tension du SX1261
-    for (volatile int i = 0; i < 10000; i++);
-
-    printf("SX1261 initialise.\r\n");
-
-    //Vérifier que le module n'est pas occupé avant d'envoyer des commandes
-        while (GPIOB->IDR & GPIO_IDR_ID3) {
-            printf("SX1261 occupé, attente...\r\n");
-        }
-
-        printf("SX1261 prêt.\r\n");
-
-
-	 // Mettre NSS à HIGH au départ
-	    NSS_HIGH();
-
-	    // Ajouter un délai pour la mise sous tension du SX1261
-	    for (volatile int i = 0; i < 10000; i++);
-
-	    printf("SX1261 initialise.\r\n");
-
-	    // Vérifier que le module n'est pas occupé avant d'envoyer des commandes
-	    int attempts = 0;
-	    while (GPIOB->IDR & GPIO_IDR_ID3) {
-	        attempts++;
-	        if (attempts > 1000) {  // Limite du nombre de tentatives
-	            printf("SX1261 occupé depuis trop longtemps, réinitialisation nécessaire.\r\n");
-	            SX1261_Reset();  // Vous pouvez ajouter une fonction pour réinitialiser le module si nécessaire.
-	            break;
-	        }
-	        printf("SX1261 occupé, attente...\r\n");
-	        SYSTICK_Delay(10);  // Ajoutez un petit délai pour éviter une boucle infinie trop rapide
-	    }
-
-	    printf("SX1261 prêt.\r\n");
-}*/
-
-void SX1261_Init(void) {
-    printf("Initialisation du SX1261...\r\n");
-
-    // 1. Reset du module
-    SX1261_Reset();
-
-    // 2. Passer en mode Standby
-    //SX1261_SetStandby();
-
-    // 3. Configurer la fréquence radio (ex: 868 MHz)
-    SX1261_WriteRegister(REG_RF_FREQ_MSB, 0xD9);
-    SX1261_WriteRegister(REG_RF_FREQ_MID, 0x00);
-    SX1261_WriteRegister(REG_RF_FREQ_LSB, 0x00);
-    //printf("Fréquence radio configurée.\r\n");
-
-    // 4. Configurer les paramètres de modulation (SF12, BW 125 kHz, CR 4/5)
-    SX1261_WriteRegister(REG_MODULATION_PARAMS_SF, SF12);
-    SX1261_WriteRegister(REG_MODULATION_PARAMS_BW, BW_125KHZ);
-    SX1261_WriteRegister(REG_MODULATION_PARAMS_CR, CR_4_5);
-    SX1261_WriteRegister(REG_MODULATION_PARAMS_LDRO, LDRO_ON);
-   // printf("Paramètres de modulation configurés.\r\n");
-
-    // 5. Définir la puissance d’émission (ex: 22 dBm)
-    SX1261_WriteRegister(REG_TX_PARAMS, TX_POWER_22DBM);
-   // printf("Puissance d’émission configurée.\r\n");
-
-    // 6. Configurer le mot de synchronisation LoRaWAN
-    SX1261_WriteRegister(REG_SYNC_WORD_MSB, LORAWAN_SYNC_WORD_MSB);
-    SX1261_WriteRegister(REG_SYNC_WORD_LSB, LORAWAN_SYNC_WORD_LSB);
-    //printf("Mot de synchronisation configuré.\r\n");
-
-    printf("SX1261 initialisé avec succès !\r\n");
-}
-
-
-
-void SX1261_Test(void) {
-    printf("Test de communication SPI avec SX1261...\r\n");
-    SX1261_WaitWhileBusy();
-    uint8_t mode1 = SX1261_ReadRegister(REG_OP_MODE);
-    SX1261_WaitWhileBusy();
-    uint8_t mode2 = SX1261_ReadRegister(REG_OP_MODE);
-
-    printf("Valeur lue 1 : 0x%02X\r\n", mode1);
-    printf("Valeur lue 2 : 0x%02X\r\n", mode2);
-
-    if (mode1 == mode2 && mode1 == OP_MODE_STANDBY) {
-        printf("✅ Test réussi : SX1261 en mode Standby.\r\n");
-    } else {
-        printf("❌ Erreur : Incohérence dans REG_OP_MODE !\r\n");
-    }
-
-
-   /* uint8_t rssi_raw = SX1261_ReadRegister(REG_RSSI_INST);
-       int rssi_dbm = - (rssi_raw / 2);
-
-       printf("RSSI mesuré : %d dBm\r\n", rssi_dbm);
-       return rssi_dbm;*/
-
-}
-
-uint8_t SX1261_GetStatus(void) {
-    uint8_t status;
-
-    NSS_LOW();
-    SPI1_TransmitReceive(0xC0);  // Commande GetStatus
-    status = SPI1_TransmitReceive(0x00);  // Lire la réponse
-    NSS_HIGH();
-
-    printf("Statut du SX1261 : 0x%02X\r\n", status);
-    return status;
-}
-
-
-
-
-
-
-void SX1261_Reset(void) {
-	 printf("Renitialisation du SX1261...\r\n");
-	    // Effectuez ici les actions nécessaires pour réinitialiser le module
-	    NSS_LOW();
-	    SYSTICK_Delay(10);  // Attendre suffisamment longtemps pour réinitialiser le module
-	    NSS_HIGH();
-	    SYSTICK_Delay(100);   // Attendre un peu avant de continuer
-}
-
-
-void SX1261_WaitWhileBusy(void) {
-	 int timeout = 100;  // Timeout après 1000 itérations (10ms chacune)
-	    while (GPIOB->IDR & GPIO_IDR_ID3) {  // Attendre que PB3 (BUSY) soit LOW
-	        if (--timeout <= 0) {
-	            printf("Timeout : Le module SX1261 est toujours occupé !\r\n");
-	            return;  // Sortir si le timeout est atteint
-	        }
-	        SYSTICK_Delay(10);  // Attendre 10ms pour éviter une boucle trop rapide
+	    if (timeout == 0) {
+	        printf("❌ Timeout : BUSY reste HIGH !\r\n");
+	    } else {
+	        printf("✅ BUSY est passé à LOW, le SX1261 est prêt.\r\n");
 	    }
 }
 
@@ -255,156 +39,206 @@ void SX1261_SetStandby(void) {
 }
 
 
+//     PROBLEEEEEEEEEEEEEEM !!!!!!!
 
 
+void SX1261_Init() {
+
+	  printf("������ Initialisation du SX1261...\r\n");
+		  NRESET_LOW();  // Mettre NRESET à LOW (assumer que NRESET est sur PB3)
+	    for (volatile int i = 0; i < 100000; i++); // Attendre >100µs
+	    NRESET_HIGH(); // Mettre NRESET à HIGH
+
+	    WaitForBusyLow();
 
 
+	    // Envoyer la commande pour passer en mode STDBY_RC
+	       printf("⚙️ Passage en mode STDBY_RC...\r\n");
+	       NSS_LOW();
+	          SPI1_TransmitReceive(0x80); // Commande SetStandby
+	          SPI1_TransmitReceive(0x00); // Paramètre : mode RC
+	       NSS_HIGH();
+	       printf("✅ SX1261 initialisé avec succès !\r\n");
 
 
+	       NSS_LOW();
+	          SPI1_TransmitReceive(0xC0); // GetStatus
+	          uint8_t status = SPI1_TransmitReceive(0x00); // Lecture du statut
+	       NSS_HIGH();
 
-
-void SX1261_LORA_Init(void) {
-	 SX1261_SetStandby();
-	// Configuration de la modulation LoRa (SF12, BW 125kHz, CR 4/5, LDRO ON)
-	SX1261_WriteRegister(REG_MODULATION_PARAMS_SF, SF12);
-	SX1261_WriteRegister(REG_MODULATION_PARAMS_BW, BW_125KHZ);
-	SX1261_WriteRegister(REG_MODULATION_PARAMS_CR, CR_4_5);
-	SX1261_WriteRegister(REG_MODULATION_PARAMS_LDRO, LDRO_ON);
-
-	// Configuration de la fréquence 868 MHz
-	SX1261_WriteRegister(REG_RF_FREQ_MSB, 0x6C);
-	SX1261_WriteRegister(REG_RF_FREQ_MID, 0x80);
-	SX1261_WriteRegister(REG_RF_FREQ_LSB, 0x00);
-
-	// Configuration du Sync Word pour LoRaWAN
-	SX1261_WriteRegister(REG_SYNC_WORD_MSB, LORAWAN_SYNC_WORD_MSB);
-	SX1261_WriteRegister(REG_SYNC_WORD_LSB, LORAWAN_SYNC_WORD_LSB);
-
-	// Configuration de la puissance d’émission à 22 dBm
-	SX1261_WriteRegister(REG_TX_PARAMS, TX_POWER_22DBM);
-
-	// Enable necessary interrupts (adjust mask as per application requirements)
-	SX1261_WriteRegister(REG_IRQ_FLAGS_MASK, 0xF7); // Mask unnecessary interrupts
-
-	// Set payload length (optional, based on application)
-	SX1261_WriteRegister(REG_PAYLOAD_LENGTH, 0x40); // Payload length = 64 bytes (adjust as needed)
-
-	// Clear all IRQ flags
-	SX1261_WriteRegister(REG_IRQ_FLAGS, 0xFF); // Clear any pending interrupts
+	       printf("������ Statut SX1261: 0x%02X\r\n", status);
+	       uint8_t mode = (status >> 5) & 0x07;
+	       if (mode == 0x00) {
+	          printf("✅ Le module est en mode STDBY_RC.\r\n");
+	       } else {
+	          printf("❌ Le module n'est pas en mode STDBY_RC (mode actuel : 0x%02X).\r\n", mode);
+	       }
 
 }
-void SX1261_SimpleTest(void) {
-    printf("\n--- Test de communication SX1261 ---\r\n");
 
-    //  Reset du SX1261 avant test
-    SX1261_Reset();
-    SYSTICK_Delay(20);
 
-    // ������ Lire un registre connu (ex: 0x0902 = mode du SX1261)
-    uint8_t mode = SX1261_ReadRegister(0x0902);
 
-    printf("Mode du SX1261 (0x0902) : 0x%02X\r\n", mode);
 
-    // Vérification du mode attendu
-    if (mode == 0x00 || mode == 0x01) {
-        printf("Success :Communication SPI avec SX1261 OK !\r\n");
+void SX1261_Send(uint8_t *data, uint8_t length) {
+    // Attendre que BUSY soit bas
+    //while (GPIOB->IDR & GPIO_IDR_ID3);
+
+    // Définir l’adresse de départ du buffer TX (commande 0x8F, TxBaseAddr = 0x00)
+    NSS_LOW();
+    SPI1_TransmitReceive(0x8F);
+    SPI1_TransmitReceive(0x00); // TxBaseAddr
+    SPI1_TransmitReceive(0x00); // RxBaseAddr
+    NSS_HIGH();
+
+    // Écrire les données dans le buffer (commande 0x0E)
+    NSS_LOW();
+    SPI1_TransmitReceive(0x0E); // WriteBuffer command
+    SPI1_TransmitReceive(0x00); // Offset = 0x00
+    for (uint8_t i = 0; i < length; i++) {
+        SPI1_TransmitReceive(data[i]); // Envoyer les données
+    }
+    NSS_HIGH();
+
+    // Lancer la transmission (commande 0x83)
+    NSS_LOW();
+    SPI1_TransmitReceive(0x83); // SetTx command
+    SPI1_TransmitReceive(0x00); // Timeout (23:16)
+    SPI1_TransmitReceive(0x00); // Timeout (15:8)
+    SPI1_TransmitReceive(0x00); // Timeout (7:0)
+    NSS_HIGH();
+
+    // Attendre l'IRQ TxDone sur DIO1
+    while (!(GPIOB->IDR & GPIO_IDR_ID3));
+}
+
+void SX1261_Receive(uint8_t *buffer, uint8_t length) {
+    // Attendre que BUSY soit bas
+    while (GPIOB->IDR & GPIO_IDR_ID3);
+
+    // Définir l'adresse de début du buffer RX (commande 0x8F)
+    NSS_LOW();
+    SPI1_TransmitReceive(0x8F);
+    SPI1_TransmitReceive(0x00); // RxBaseAddr
+    SPI1_TransmitReceive(0x00); // TxBaseAddr
+    NSS_HIGH();
+
+    // Passer en mode réception (commande 0x82)
+    NSS_LOW();
+    SPI1_TransmitReceive(0x82);
+    SPI1_TransmitReceive(0x00); // Timeout (23:16)
+    SPI1_TransmitReceive(0x00); // Timeout (15:8)
+    SPI1_TransmitReceive(0x00); // Timeout (7:0)
+    NSS_HIGH();
+
+    // Attendre l'IRQ RxDone sur DIO1
+    while (!(GPIOB->IDR & GPIO_IDR_ID3));
+
+    // Lire les données reçues (commande 0x1E)
+    NSS_LOW();
+    SPI1_TransmitReceive(0x1E); // ReadBuffer command
+    SPI1_TransmitReceive(0x00); // Offset = 0x00
+    for (uint8_t i = 0; i < length; i++) {
+        buffer[i] = SPI1_TransmitReceive(0x00); // Lire les octets un par un
+    }
+    NSS_HIGH();
+}
+
+
+
+
+// Fonction pour tester la communication SPI avec le SX1261
+
+
+
+
+void SX1261_TestCommunication(void ) {
+
+	printf("������ Début du test SX1261...\r\n");
+
+
+
+    // Envoyer la commande de lecture du registre 0x0889
+   NSS_LOW();
+   // Attendre que BUSY soit bas
+  while (GPIOB->IDR & GPIO_IDR_ID3);
+   printf("BUSY LOW Yes  \r\n");
+
+
+
+   SPI1_TransmitReceive(0x1D);  // Commande ReadRegister
+   SPI1_TransmitReceive(0x06);  // MSB de l'adresse (0x06BC)
+   SPI1_TransmitReceive(0xBC);  // LSB de l'adresse (0x06BC)
+
+   //printf("BUSY LOW Yes  \r\n");
+   uint8_t status;
+   status = SPI1_TransmitReceive(0x00);// NOP pour lire lel status
+   printf("THE STATUS IS : 0x%02X  \r\n",status);
+   receive[0] = SPI1_TransmitReceive(0x00);//NOP pour lire la  donnéé
+   receive[1] = SPI1_TransmitReceive(0x00);//NOP pour lire la  donnéé
+   printf("BUSY LOW Yes  \r\n");
+   NSS_HIGH();
+
+   uint16_t receivedata = ((uint16_t)receive[0]<< 8) | receive[1];  // Concaténation
+
+
+    // Vérifier la réponse et afficher le résultat sur l'UART
+    if ( receivedata == 0x1D) {  // La valeur typique du registre 0x89 est 0x12
+        printf("✅ Test réussi : Communication SPI avec SX1261 OK !, Registre 0x0889 : 0x%04X\r\n",receivedata);
     } else {
-        printf(" Erreur : mode inattendu (0x%02X). Vérifie câblage et SPI.\r\n", mode);
+        printf("❌ Test échoué : Pas de réponse valide du SX1261 (0x%04X)\r\n", receivedata);
     }
+
+
 }
 
-void SX1261_TestWriteRead(void) {
-    uint8_t testReg = 0x000D;  //  Choix d'un registre libre pour le test
-    uint8_t testValue = 0xAA; //  Valeur à écrire
-    uint8_t readValue = 0x00; //  Valeur lue après écriture
 
-    printf("\n--- Test Write/Read SX1261 ---\r\n");
 
-    // ������ Écriture du byte dans le registre
-    SX1261_WriteRegister(testReg, testValue);
-    printf("✅ Écriture : 0x%02X -> Registre 0x%02X\r\n", testValue, testReg);
+void Check_BUSY_State() {
+    printf("������ Vérification de la broche BUSY...\r\n");
 
-    // SMALL DELAY TO MAKE SURE THE WRITING IS DONE
-    SYSTICK_Delay(10);
-
-    // READ THE REGISTER
-    readValue = SX1261_ReadRegister(testReg);
-    printf("������ Lecture du registre 0x%02X : 0x%02X\r\n", testReg, readValue);
-
-    // ������ Vérification
-    if (readValue == testValue) {
-        printf("������ SUCCÈS : Valeur correcte reçue !\r\n");
+    // Lire l'état initial de BUSY
+    if (GPIOB->IDR & GPIO_IDR_ID3) {
+        printf("������ BUSY est HIGH au démarrage !\r\n");
     } else {
-        printf("⚠️ ERREUR : Valeur inattendue (0x%02X). Vérifier SPI et registre.\r\n", readValue);
+        printf("✅ BUSY est LOW au démarrage.\r\n");
+    }
+
+    // Effectuer un reset matériel du SX1261
+    printf("������ Reset du SX1261...\r\n");
+    GPIOA->ODR &= ~GPIO_ODR_OD4; // Mettre NRESET à LOW
+    for (volatile int i = 0; i < 10000; i++); // Attendre > 100µs
+    GPIOA->ODR |= GPIO_ODR_OD4; // Mettre NRESET à HIGH
+
+    // Attendre que BUSY change d'état (timeout après 100ms)
+    uint32_t timeout = 100000;
+    while ((GPIOB->IDR & GPIO_IDR_ID3) && timeout--) ;
+
+    if (timeout == 0) {
+        printf("❌ BUSY est toujours HIGH après reset !\r\n");
+    } else {
+        printf("✅ BUSY est devenu LOW, SX1261 prêt !\r\n");
     }
 }
 
 
 
-/*******      PROBLEEEEEEEEEEEEEEM !!!!!!!!     **********/
+void SX1261_SoftReset() {
+    NSS_LOW();
+    SPI1_TransmitReceive(0x80); // Commande SetStandby (STDBY_RC)
+    SPI1_TransmitReceive(0x00);
+    NSS_HIGH();
 
+    printf("������️ Soft reset du SX1261 envoyé.\r\n");
 
+    // Vérifier si BUSY passe enfin à LOW
+    uint32_t timeout = 100000;
+    while ((GPIOB->IDR & GPIO_IDR_ID3) && timeout--) ;
 
-void SX1261_LORA_test(void) {
-    // Charger le message dans le FIFO (ex. "Hello LoRaWAN")
-    SPI1_TransmitReceive(0x0800); // Adresse du FIFO
-    SPI1_TransmitReceive('H');
-    SPI1_TransmitReceive('e');
-    SPI1_TransmitReceive('l');
-    SPI1_TransmitReceive('l');
-    SPI1_TransmitReceive('o');
-    SPI1_TransmitReceive(' ');
-    SPI1_TransmitReceive('L');
-    SPI1_TransmitReceive('o');
-    SPI1_TransmitReceive('R');
-    SPI1_TransmitReceive('a');
-    SPI1_TransmitReceive('W');
-    SPI1_TransmitReceive('A');
-    SPI1_TransmitReceive('N');
-
-
-    // Attendre que le module ne soit pas occupé avant d'envoyer des données
-       SX1261_WaitWhileBusy();
-
-
-    // Lancer la transmission avec la commande TX (SetTx)
-   // SPI1_TransmitReceive(0x83); // Commande TX
-   // SPI1_TransmitReceive(0x00); // Paramètre (ajuster selon besoin)
-   // SPI1_TransmitReceive(0x00);
-    //SPI1_TransmitReceive(0x00);
-
-    // Vérifier si l'IRQ de fin de transmission (TX_DONE) est activé
-    uint8_t irqFlags = SPI1_TransmitReceive(REG_IRQ_FLAGS);
-    if (irqFlags & 0x08) { // Si TX_DONE est activé
-        printf("Transmission réussie!\n");
-        // Effacer l'IRQ
-        SPI1_TransmitReceive(REG_IRQ_FLAGS);
-    }
-
-
-    // Attendre que le module ne soit pas occupé avant d'envoyer des données
-       SX1261_WaitWhileBusy();
-
-
-    // Lancer la réception (SetRx)
-    SPI1_TransmitReceive(0x82); // Commande RX
-   // SPI1_TransmitReceive(0x00); // Paramètre (ajuster selon besoin)
-   // SPI1_TransmitReceive(0x00);
-   // SPI1_TransmitReceive(0x00);
-
-    // Lire le message depuis le FIFO
-    uint8_t receivedMessage[64]; // Assumer un max de 64 octets
-    for (int i = 0; i < 64; i++) {
-        receivedMessage[i] = SPI1_TransmitReceive(0x0800 + i);
-    }
-    printf("Message reçu : %s\n", receivedMessage);
-
-    // Vérifier si l'IRQ RX_DONE est activé
-    irqFlags = SPI1_TransmitReceive(REG_IRQ_FLAGS);
-    if (irqFlags & 0x20) { // Si RX_DONE est activé
-        printf("Réception réussie!\n");
-        // Effacer l'IRQ
-        SPI1_TransmitReceive(REG_IRQ_FLAGS);
+    if (timeout == 0) {
+        printf("❌ BUSY reste bloqué après le soft reset.\r\n");
+    } else {
+        printf("✅ BUSY est maintenant LOW après le soft reset !\r\n");
     }
 }
+
 

@@ -54,6 +54,18 @@ void RTC_GetTime(uint8_t *hours, uint8_t *minutes, uint8_t *seconds) {
     *minutes = ((tr >> 12) & 0x7) * 10 + ((tr >> 8) & 0xF);
     *seconds = ((tr >> 4) & 0x7) * 10 + (tr & 0xF);
 }
+void RTC_test (void){
+	uint8_t hours, minutes, seconds;
+		 // Lire l'heure actuelle
+		RTC_SetTime(12, 34, 56);// Configurer l'heure : 12:34:56
+		 RTC_GetTime(&hours, &minutes, &seconds);
+		 // Code UART pour afficher les heures, minutes et secondes
+		  printf("Time: %02d:%02d:%02d\r\n", hours, minutes, seconds);
+		  // Petite temporisation pour éviter les rafraîchissements trop rapides
+
+		  	 for (volatile int i = 0; i < 1000000; i++);
+}
+
 void RTC_SetWakeup(uint32_t seconds) {
     // Désactiver la protection d'écriture
     RTC->WPR = 0xCA;
